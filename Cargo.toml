@@ -1,5 +1,5 @@
 [package]
-name = "pipeworkmc-webserver"
+name    = "pipeworkmc-webserver"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,11 +7,16 @@ edition = "2024"
 unused_parens = "allow"
 
 
+[dependencies.pipeworkmc-db]
+path = "../pipeworkmc-db"
+
 [dependencies.smol]
 version = "2.0"
 
 [dependencies.tide]
 version = "0.16"
+[dependencies.tide-rustls]
+version = "0.3"
 [dependencies.tide-websockets]
 version = "0.4"
 [dependencies.maud]

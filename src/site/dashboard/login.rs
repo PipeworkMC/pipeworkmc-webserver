@@ -1,9 +1,9 @@
 use crate::{
     auth, layout,
-    site::SharedSiteState
+    site::{ self, SharedSiteState }
 };
+use std::sync::Arc;
 use tide::{
-    Redirect,
     Request,
     Response
 };
@@ -11,11 +11,15 @@ use surf::Client;
 use serde::Deserialize as Deser;
 
 
-pub async fn route_login(req : Request<SharedSiteState>) -> tide::Result<Response> {
-    Ok(tide::Response::from(layout::default(
+pub async fn route_login(req : &mut Request<SharedSiteState>) -> tide::Result<Response> {
+    let login = Arc::clone(req.state()).lookup_login_session(req).await;
+    site::require_logged_out!(login);
+
+    Ok(tide::Response::from(layout::default(req,
+        layout::PageType::Normal,
+        login.as_ref().map(|l| &**l),
         "Dashboard",
         "Log In",
-        false,
         layout::html!{
             div .content_centre {
                 a href=(req.state().microsoft_oauth_url) {
@@ -23,7 +27,7 @@ pub async fn route_login(req : Request<SharedSiteState>) -> tide::Result<Respons
                 }
             }
         }
-    )))
+    ).await))
 }
 
 
@@ -33,7 +37,12 @@ struct MicrosoftOauthQuery {
     microsoft_code : String
 }
 
-pub async fn route_oauth_microsoft(req : Request<SharedSiteState>) -> tide::Result<Redirect<&'static str>> {
+pub async fn route_after_oauth(req : &mut Request<SharedSiteState>) -> tide::Result<Response> {
+    {
+        let login = Arc::clone(req.state()).lookup_login_session(req).await;
+        site::require_logged_out!(login);
+    }
+
     let query = req.query::<MicrosoftOauthQuery>()?;
 
     let client = Client::new();
@@ -41,11 +50,19 @@ pub async fn route_oauth_microsoft(req : Request<SharedSiteState>) -> tide::Resu
     let xbox_auth         = auth::minecraft::login::exchange_xbox_auth(&client, &microsoft_token.access_token).await?;
     let xsts_token        = auth::minecraft::login::exchange_xsts_token(&client, &xbox_auth.token).await?;
     let minecraft_token   = auth::minecraft::login::exchange_minecraft_token(&client, &xbox_auth.userhash, &xsts_token).await?;
-                            auth::minecraft::account::verify_account_product(&client, &minecraft_token).await?;
+                            // auth::minecraft::account::verify_account_product(&client, &minecraft_token).await?;
     let minecraft_profile = auth::minecraft::account::fetch_account_profile(&client, &minecraft_token).await?;
-    let skin_uri          = minecraft_profile.get_active_skin(&client).await?;
+    let minecraft_skin    = minecraft_profile.get_active_skin(&client).await?;
 
-    // TODO: Login
+    Arc::clone(req.state()).create_login_session(req,
+        minecraft_profile.uuid,
+        minecraft_profile.username,
+        minecraft_skin
+    ).await;
 
-    Ok(Redirect::see_other("/dashboard"))
+    Ok(layout::html!{
+        body {
+            script { (layout::PreEscaped("window.location.replace(\"/dashboard\");")) }
+        }
+    }.into())
 }

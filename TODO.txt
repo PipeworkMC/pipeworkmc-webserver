@@ -1,0 +1,6 @@
+- Cache Minecraft account information and update when ratelimit is okay
+- Ratelimit login attempts
+- Log out button
+- Expire session key
+- CORS headers
+- Use SSE to show current login progress on client

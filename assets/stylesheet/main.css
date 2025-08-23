@@ -150,14 +150,6 @@ a:not(a.noinvert):hover {
     height : 100%;
     margin : -3px;
 }
-/*#header_logo img {
-    position  : absolute;
-    top       : 50%;
-    left      : 50%;
-    transform : translate(-50%, -50%);
-    height    : 64px;
-    filter    : drop-shadow(0 0 8px #000000);
-}*/
 
 #header_account {
     margin-right    : 8px;
@@ -178,6 +170,11 @@ a:not(a.noinvert):hover {
 }
 #header_account svg {
     width : 30px;
+}
+#header_account img {
+    width           : 30px;
+    image-rendering : pixelated;
+    box-shadow      : 0 0 2px #ffffff;
 }
 
 #main {

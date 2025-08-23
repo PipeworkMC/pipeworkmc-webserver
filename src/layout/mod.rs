@@ -1,4 +1,8 @@
-use maud::{
+use crate::site::SharedSiteState;
+use pipeworkmc_db::LoginSession;
+use std::sync::Arc;
+use tide::Request;
+pub use maud::{
     DOCTYPE,
     PreEscaped,
     Render
@@ -6,12 +10,33 @@ use maud::{
 use chrono::{ Datelike, Utc };
 
 
-pub fn default(
+const STEVE_SKIN : &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IB2cksfwAAAARnQU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAlwSFlzAAAuIwAALiMBeKU/dgAAAAd0SU1FB+kICQEQGZ+MNAcAAADPSURBVBjTTcyrbgJBAIXhn83MLC0ssxWQPkANwRAwdcXyADxBTV8GX4LAkSZVBIElBENIKmoQyGaraLLDZe/J1i0ceU7OV+o+PeQAVSW4zTnJiJIMy5zDorgdq0pQVgJhK8nbyzOPjTri3iELToRxijE+o9WG0vi1n2vtcmdLAMI4LSRjfCytXQbDKZN1q3h+bNsMhlO0dq8CwPJrB0Cv07wKlyDAO3hM5gscS+JYkvfPGd7B49f3EcLO+TulxFHC98+eOEqwy4rjJaVWkfwD+DdX0n69wvwAAAAASUVORK5CYII=";
+
+
+#[derive(PartialEq, Eq)]
+pub enum PageType {
+    Normal,
+    Error
+}
+
+
+pub async fn default(
+    req        : &mut Request<SharedSiteState>,
+    page_type  : PageType,
+    login      : Option<&LoginSession>,
     supertitle : impl Render,
     title      : impl Render,
-    is_error   : bool,
     main       : impl Render
 ) -> PreEscaped<String> {
+    let mut has_account  = false;
+    let mut account_name = html!{ "No" (NBSP) "Account" };
+    let mut account_icon = html!{ (icon_svg!("account.svg")) };
+    if let Some(login) = login {
+        has_account  = true;
+        account_name = html!{ (login.minecraft_username) };
+        account_icon = html!{ img src=(login.minecraft_skin.as_ref().map_or(STEVE_SKIN, |s| s.as_str())); };
+    }
+
     html!{
 
         head {
@@ -21,7 +46,7 @@ pub fn default(
         body {
 
             div #header {
-                div #header_page .header_error[is_error] {
+                div #header_page .header_error[page_type == PageType::Error] {
                     span #header_page_supertitle { (supertitle) } (NBSP)
                     br;
                     span #header_page_title { (title) } (NBSP)
@@ -33,8 +58,8 @@ pub fn default(
                     span { "MC" }
                 }
                 div #header_account {
-                    span .no_account { "No" (NBSP) "Account" }
-                    (icon_svg!("account.svg"))
+                    span .no_account[! has_account] { (account_name) }
+                    (account_icon)
                 }
             }
 
